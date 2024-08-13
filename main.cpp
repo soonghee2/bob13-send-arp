@@ -18,9 +18,6 @@ using namespace std;
 
 std::map<Ip, Mac> mac_cache;
 
-
-void print_mac_address(const Mac& mac) { 	printf("%s\n", static_cast<std::string>(mac).c_str()); }
-
 #pragma pack(push, 1)
 struct EthArpPacket final {
 	EthHdr eth_;
@@ -28,10 +25,15 @@ struct EthArpPacket final {
 };
 #pragma pack(pop)
 
+//mac 주소를 출력해주는 함수
+void print_mac_address(const Mac& mac) { 	printf("%s\n", static_cast<std::string>(mac).c_str()); }
+
 void usage() {
 	printf("syntax: send-arp-test <interface>\n");
 	printf("sample: send-arp-test wlan0\n");
 }
+
+//host의 ip와 mac을 찾아주는 함수
 void find_my_ipmac(const char* dev, Ip *my_ip, Mac* my_mac){
 	struct ifreq s;
     int fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
@@ -61,6 +63,7 @@ void find_my_ipmac(const char* dev, Ip *my_ip, Mac* my_mac){
     close(fd);
 };
 
+//보낼 패킷 만들기
 void make_send_packet(EthArpPacket &packet_send, const Mac& eth_sender_mac, const Mac& eth_target_mac, const Mac& arp_sender_mac, const Ip& sender_ip, const Mac& arp_target_mac, const Ip& target_ip){
 	packet_send.eth_.type_ = htons(EthHdr::Arp);
 	packet_send.arp_.hrd_ = htons(ArpHdr::ETHER);
@@ -81,6 +84,7 @@ void make_send_packet(EthArpPacket &packet_send, const Mac& eth_sender_mac, cons
 
 }
 
+//위조된 arp packet만들기
 void change_sender_arp_table(pcap_t* handle,const Mac& my_mac, const Mac& sender_mac, const Ip& target_ip, const Ip& sender_ip){
 	//printf("Sender IP Address: %s, Target IP Address: %s\n", static_cast<std::string>(sender_ip).c_str(), static_cast<std::string>(target_ip).c_str());
 	//printf("Sender MAC Address: ");
@@ -98,7 +102,7 @@ void change_sender_arp_table(pcap_t* handle,const Mac& my_mac, const Mac& sender
 	fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res, pcap_geterr(handle));
 	}
 };
-
+//dest의 mac address 찾는 함수
 int get_mac_address(pcap_t* handle, const Mac& my_mac, const Ip& my_ip, Mac& dest_mac, const Ip& dest_ip){
 	//printf("request (%s)'s MAC........\n", static_cast<std::string>(dest_ip).c_str());
 
@@ -148,7 +152,7 @@ int performArpAttack(pcap_t* handle, char* dev, const Ip& my_ip, const Mac& my_m
 	status=1;
 
 	while (1) {      
-		if(status){//flag == 0: 수신만 기능
+		if(status){//status == 0: 수신만 기능
 			if(flag_send==1){
 				if(get_mac_address(handle,my_mac, my_ip, sender_mac, sender_ip)) {
 					search_ip=sender_ip;
